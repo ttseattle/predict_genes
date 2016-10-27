@@ -1,86 +1,83 @@
 import pdb
 
-# define stop codons 
 RNA_STOPS = ["UAG", "UAA", "UGA"]
 DNA_STOPS = ["TAG", "TAA", "TGA"]
-NUCS = ["A", "T", "C", 'G']
+NUCLEOTIDES = ["A", "T", "C", "G"]
 GENE_LEN = 1000
 
 def findOrfs(seq): 
-    genes, genome_ends = prep_annotations()
+    genes, genome_ends = prep_annotations(seq)
 
     orfs = []
+    for offset in range(3):
+        orfs_at_offset = scan(seq, offset)
+        orfs += orfs_at_offset
+        print "number of ORFS at offset " + str(offset), len(orfs_at_offset)
+    # orfs1 = scan(seq, 0)
+    # orfs2 = scan(seq, 1)
+    # orfs3 = scan(seq, 2)
+    # orfs = orfs1+orfs2+orfs3
 
-    orfs1 = []
-    orfs2 = []
-    orfs3 = []
+    print "total number of ORFS", len(orfs)
 
-    # for offset in range(3):
-    one = scan(orfs1, seq, 0)
-    two = scan(orfs2, seq, 1)
-    three = scan(orfs3, seq, 2)
-
-    print "one", len(orfs1)
-    print "two", len(orfs2)
-    print "three", len(orfs3)
-    
-    print "number of ORFS", len(orfs)
     count = 0 
+    count_seq = 0
+
+    orfs_l_50 = 0
+    orfs_g_1400 = 0
     for orf in sorted(orfs, key=lambda tup: tup[1]): 
         seq = orf[0]
-        start = orf[1] + 1
-        end = orf[2] + 1
+        start = orf[1]+1
+        end = orf[2]+1
+
+        if len(seq) < 50:
+            orfs_l_50 += 1
+        if len(seq) > 1400:
+            orfs_g_1400 += 1
 
         # if len(seq) >= GENE_LEN:
         if end in genome_ends:
-            # print str(start) + ".." + str(end) + " " + seq
+            # print "MATCHING " + str(start) + ".." + str(end) + " " + seq
             count = count + 1
-        # if seq in genes: 
-        #     print seq 
+
+        if seq in genes: 
+            count_seq += 1
+        
+        # print str(start) + ".." + str(end) + " " + seq
     print "number of matching ORFS", count
+    print "number of matching ORF sequences", count_seq
+
+    print "less than 50", orfs_l_50
+    print "greater than 1400", orfs_g_1400
+
+    # for seq in genes:
+    #     print seq, genes[seq]
 
 def print_gene(seq, start, end):
     print str(start) + ".." + str(end) + " " + seq
 
-def scan(orfs, seq, offset): 
-    orf_start = offset
-    orf = ""
-    idx = orf_start
+def scan(seq, offset): 
+    orfs = []
 
-    count = 0 
+    orf_seq = ""
+    idx = offset
+    orf_start = idx 
+
     while idx <= len(seq): 
-        # if count > 10: 
-        #     break
+        triplet = seq[idx:idx + 3]
+        orf_seq += triplet 
 
-        triplet = seq[idx:idx+3]
-        orf = orf + triplet 
         if is_stop(triplet):
-            # if len(orf)>=GENE_LEN:
-                # print_gene(orf, orf_start, idx+3)
-            orfs.append((orf, orf_start, idx+3))
-            print orf
-            count = count + 1
-            orf = ""    #reset orf 
-            # orf_start = idx + 3 
-            # idx = orf_start
-        idx = idx + 3 
+            orf_end = idx + 1 # want the index of the whole codon? 
+            orfs.append((orf_seq, orf_start, orf_end))
 
-# def scan(orfs, seq, offset):
-#     orf_seq = ""
-#     orf_start = offset
-#     for i in range(offset, len(seq)+1, 3):  
-#         triplet = seq[i:i+3]
-#         orf_seq = orf_seq + triplet 
-#         if is_stop(triplet):
-#             orf = (orf_seq, orf_start, i+3)
-#             orfs.append(orf) 
+            #reset orf 
+            orf_seq = ""    
+            orf_start = idx + 3 
 
-#             # print orf_seq
-#             # break 
+        idx += 3
 
-#             # reset orf
-#             orf_seq = "" 
-#             orf_start = i+3
+    return orfs 
 
 def is_stop(triplet):
     for dna_stop in DNA_STOPS: 
@@ -90,48 +87,26 @@ def is_stop(triplet):
 
 def prep_mjannaschii(): 
     file = open("data/genome.fna")
-
     fileContent = file.readlines()[1:]  # skip first line
 
     data = ""
     for line in fileContent: 
-        # pdb.set_trace()
         # only record the first long chromosome - stop at the beginning of the small ones 
         if line[0]==">":
             break
 
         for char in line: 
-            if char == '\n':
+            if char == '\n' or char == ' ':
                 continue 
-            elif char not in NUCS: 
+            elif char not in NUCLEOTIDES: 
                 data += "T" 
             else:
                 data += char
-
-        # formatted_line = ""
-        # for char in line: 
-        #     # if char == ' ':
-        #     #     continue 
-        #     # elif char=='A' or char=='a':
-        #     #     formatted_line = formatted_line + 'A'
-        #     # elif char=='C' or char=='c':
-        #     #     formatted_line = formatted_line + 'C'
-        #     # elif char=='G' or char=='g':
-        #     #     formatted_line = formatted_line + 'G'
-        #     # else:    
-        #     #     formatted_line = formatted_line + 'T'
-        #     if char not in NUCS: 
-        #         formatted_line += 'T'
-        #     else:
-        #         formatted_line += char 
-        # data = data + formatted_line 
     
     return data 
 
-def prep_annotations(): 
-    seq = prep_mjannaschii() 
+def prep_annotations(seq): 
     file = open("data/annotation.gbff")
-
     fileContent = file.readlines() 
 
     ends = {}
@@ -139,6 +114,8 @@ def prep_annotations():
 
     for line in fileContent: 
         parts = line.split()
+
+        # gene indices are located on lines labeled with CDS
         if parts and parts[0] == "CDS":
             content = parts[1]
 
@@ -149,14 +126,17 @@ def prep_annotations():
                 # for now, ignore < / >
                 if "<" in content or ">" in content: 
                     continue
+
                 idx_range = content.split("..")
-                start = int(idx_range[0])
+                start = int(idx_range[0])-1
                 end = int(idx_range[1])
+
                 gene = seq[start:end]
                 genes[gene] = end 
                 ends[end] = True
+        
         # only process the first chromosome 
-        elif parts and parts[0] == "ORIGIN":
+        if parts and parts[0] == "ORIGIN":
             break 
     
     print "number of annnotated genes", len(genes) 
@@ -164,9 +144,7 @@ def prep_annotations():
 
 def main(): 
     data = prep_mjannaschii() 
+    # print data
     findOrfs(data)
-
-    # data = "UUAAUGUGUCAUUGAUUAAG"
-    # print findOrfs(data)
 
 main()
