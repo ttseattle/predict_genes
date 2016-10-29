@@ -1,60 +1,79 @@
 import pdb
+import math 
+import markovmodel
 
 RNA_STOPS = ["UAG", "UAA", "UGA"]
 DNA_STOPS = ["TAG", "TAA", "TGA"]
-NUCLEOTIDES = ["A", "T", "C", "G"]
+NUCLEOTIDES = ["A", "C", "G", "T"]
 GENE_LEN = 1000
+K = 3 
 
-def findOrfs(seq): 
-    genes, genome_ends = prep_annotations(seq)
+def findOrfs(): 
+    seq = prep_mjannaschii() 
 
+    # find all ORFs within the sequence 
     orfs = []
     for offset in range(3):
         orfs_at_offset = scan(seq, offset)
         orfs += orfs_at_offset
         print "number of ORFS at offset " + str(offset), len(orfs_at_offset)
-    # orfs1 = scan(seq, 0)
-    # orfs2 = scan(seq, 1)
-    # orfs3 = scan(seq, 2)
-    # orfs = orfs1+orfs2+orfs3
-
     print "total number of ORFS", len(orfs)
 
-    count = 0 
-    count_seq = 0
+    # get the real genes from the annotations
+    gene_ends, genes = prep_annotations(seq)
 
-    orfs_l_50 = 0
-    orfs_g_1400 = 0
-    for orf in sorted(orfs, key=lambda tup: tup[1]): 
-        seq = orf[0]
-        start = orf[1]+1
-        end = orf[2]+1
+    count = 0
+    count2 = 0
+    for orf in orfs: 
+        # pdb.set_trace()
+        subseq, start, end = orf
+        if end in gene_ends:
+            # pdb.set_trace()
+            count += 1
+            if subseq in genes: 
+                count2 += 1
+            # else: 
+            #     pdb.set_trace()
+    print "matching ends", count 
+    print "matching genes", count2
+
+    trusted_non_genes = []
+    trusted_genes = []
+    for orf in orfs: 
+        seq, start, end = orf
 
         if len(seq) < 50:
-            orfs_l_50 += 1
-        if len(seq) > 1400:
-            orfs_g_1400 += 1
+            trusted_non_genes.append(orf)
+        elif len(seq) > 1400:
+            trusted_genes.append(orf)
 
-        # if len(seq) >= GENE_LEN:
-        if end in genome_ends:
-            # print "MATCHING " + str(start) + ".." + str(end) + " " + seq
-            count = count + 1
+    print "less than 50", len(trusted_non_genes)
+    print "greater than 1400", len(trusted_genes)
 
-        if seq in genes: 
-            count_seq += 1
-        
-        # print str(start) + ".." + str(end) + " " + seq
-    print "number of matching ORFS", count
-    print "number of matching ORF sequences", count_seq
+    markovmodel.part_e(K, trusted_genes)
+    markovmodel.part_e(K, trusted_non_genes)
+    
+    print_table(trusted_genes, trusted_non_genes)
 
-    print "less than 50", orfs_l_50
-    print "greater than 1400", orfs_g_1400
+def print_table(trusted_genes, trusted_non_genes):
+    for orf in sorted(trusted_non_genes, key=lambda tup: tup[1])[:5]:
+        seq, start, end = orf
+        print_info(seq, start, end, trusted_genes, trusted_non_genes)
 
-    # for seq in genes:
-    #     print seq, genes[seq]
+    for orf in sorted(trusted_genes, key=lambda tup: tup[1])[:5]:
+        seq, start, end = orf
+        print_info(seq, start, end, trusted_genes, trusted_non_genes)
 
-def print_gene(seq, start, end):
-    print str(start) + ".." + str(end) + " " + seq
+def print_info(seq, start, end, trusted_genes, trusted_non_genes): 
+    print ""
+    print seq 
+    print "Start Index", start 
+    print "End Index", end 
+    print "Length", len(seq)
+    markovmodel.calc_mm_score(seq, K, trusted_genes, trusted_non_genes)
+    print "CDS?", "T" if seq in trusted_genes else "F"
+    print "-------------------"
+    print ""
 
 def scan(seq, offset): 
     orfs = []
@@ -68,7 +87,7 @@ def scan(seq, offset):
         orf_seq += triplet 
 
         if is_stop(triplet):
-            orf_end = idx + 1 # want the index of the whole codon? 
+            orf_end = idx + 3
             orfs.append((orf_seq, orf_start, orf_end))
 
             #reset orf 
@@ -111,7 +130,6 @@ def prep_annotations(seq):
 
     ends = {}
     genes = {}
-
     for line in fileContent: 
         parts = line.split()
 
@@ -126,25 +144,35 @@ def prep_annotations(seq):
                 # for now, ignore < / >
                 if "<" in content or ">" in content: 
                     continue
-
+                # record at what index the sequence ended 
                 idx_range = content.split("..")
-                start = int(idx_range[0])-1
+                start = int(idx_range[0])
                 end = int(idx_range[1])
 
-                gene = seq[start:end]
-                genes[gene] = end 
                 ends[end] = True
+                gene = seq[start:end+1]
+
+                if end==10004:
+                    print gene
+
+                genes[gene] = True 
         
         # only process the first chromosome 
         if parts and parts[0] == "ORIGIN":
             break 
-    
-    print "number of annnotated genes", len(genes) 
-    return (genes, ends)
+
+    return (ends, genes)
 
 def main(): 
-    data = prep_mjannaschii() 
-    # print data
-    findOrfs(data)
+    # data = prep_mjannaschii() 
+    # findOrfs(data)
+    findOrfs()
+
+    # training = ["AAAAGCTA"]
+    # print markovmodel.condit_prob("A","AA",2,training)
+    # print markovmodel.condit_prob("G","AA",2,training)
+    # print markovmodel.condit_prob("A","CT",2,training)
+    # print markovmodel.uncondit_prob("AA",2,training)
+    # print markovmodel.uncondit_prob("AG",2,training)    
 
 main()
