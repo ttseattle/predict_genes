@@ -1,0 +1,42 @@
+NUMBER OF ORFS FOUND
+number of ORFS at offset 0: 37897
+number of ORFS at offset 1: 38771
+number of ORFS at offset 2: 38529
+total number of ORFS: 115197
+
+NUMBER OF ORFS OF LENGTH < 50 AND > 1400
+less than 50: 88030
+greater than 1400: 118
+
+NUMBER OF SIMPLE FORWARD STRAND CDSs
+number of genes in GenBank: 878
+
+COUNTS FOR CALCULATING P(A|Axy) -- COUNT(AxyA), COUNT(Axy)
+   A               C               G               T              
+A  6580, 15905     1780, 4243      3965, 8028      3302, 9122     
+C  1656, 3997      685, 1479       293, 765        770, 3104      
+G  3295, 9671      999, 2718       1981, 4195      950, 4035      
+T  3347, 8877      837, 2549       2250, 6173      2895, 9087     
+
+COUNTS FOR CALCULATING Q(A|Axy) -- COUNT(AxyA), COUNT(Axy)
+   A               C               G               T              
+A  28571, 68981    8454, 21954     13459, 30187    14240, 43497   
+C  7929, 19516     4319, 9956      1209, 3385      3549, 16238    
+G  12136, 33242    4744, 13069     7204, 15992     3650, 16066    
+T  12913, 39334    7386, 22499     5369, 22570     12610, 48168 
+
+SUMMARY FOR FIRST 5 ORFS OF LENGTH < 50
+#     Start      Length     MM Score           CDS?      
+1     0          39         1.56678727191      False     
+2     2          6          0.667366861992     False     
+3     8          15         0.633938280251     False     
+4     23         12         0.418546201372     False     
+5     39         15         0.634136080416     False     
+
+SUMMARY FOR FIRST 5 ORFS OF LENGTH > 1400
+#     Start      Length     MM Score           CDS? 
+1     17618      1614       54.5409415958      False     
+2     33625      1623       65.6859640015      False     
+3     42724      2388       76.0581583166      False  
+4     74591      1422       36.7210402482      False  
+5     76819      1665       61.6096434786      False     

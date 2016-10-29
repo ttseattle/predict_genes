@@ -9,7 +9,6 @@ def calc_mm_score(x, k, trusted_genes, trusted_non_genes):
     mm_score = log_p_x - log_q_x    
     return mm_score
 
-# TODO: Exclude the stop codon from your frequency estimates in both "trusted" sets; it might introduce bias, especially in the short negative examples.
 # k = 3 --> P(x) = P(x1 x2 x3) * P(x4 | x1 x2 x3) * P(x5 | x2 x3 x4) ... P(xn | xn-3 xn-2 xn-1)
 def calc_prob(x, k, training):
     prob = uncondit_prob(x[:k], k, training)
