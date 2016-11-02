@@ -53,10 +53,10 @@ def prep_mjannaschii(filepath):
 
 def prep_annotations(filepath, seq): 
     file = open(filepath)
-    fileContent = file.readlines() 
+    file_content = file.readlines() 
 
     ends = {}
-    for line in fileContent: 
+    for line in file_content: 
         parts = line.split()
 
         # gene indices are located on lines labeled with CDS
@@ -81,3 +81,39 @@ def prep_annotations(filepath, seq):
             break 
 
     return ends
+
+# false-positive: not a gene, but says it is 
+# true-positive: a gene, and says is a gene
+def positive(orfs, gene_ends):
+    num_false_positives = 0
+    num_true_postives = 0
+    for orf in orfs:
+        seq, start, end = orf 
+        if end in gene_ends:
+            num_true_postives += 1
+        else: 
+            num_false_positives +=1
+    return (num_false_positives, num_true_postives)
+
+def len_thresh(orfs, gene_ends, threshold):
+    genes = []
+    for orf in orfs:
+        seq, start, end = orf 
+        if len(seq) > threshold:
+            genes.append(orf)
+    
+    num_false_positives, num_true_positives = positive(genes, gene_ends)
+    print "number false positives", num_false_positives
+    print "number true positives", num_true_positives
+    ratio = num_true_positives/(len(genes)*1.0)
+    print "true positive rate", ratio
+
+# MJANNASCHII_FILEPATH = "data/genome.fna"
+# ANNOTATIONS_FILEPATH = "data/annotation.gbff"
+
+# seq = prep_mjannaschii(MJANNASCHII_FILEPATH) 
+# gene_ends = prep_annotations(ANNOTATIONS_FILEPATH, seq)
+
+# # homework problems 
+# orfs = hw2.find_orfs(seq)
+# len_thresh(orfs, gene_ends, 1000)

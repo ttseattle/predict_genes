@@ -32,7 +32,7 @@ def uncondit_prob(x, k, training):
         seq = orf[0]
         for i in range(len(seq)-(k-1)):
             sub_seq = seq[i:i+k]
-            if sub_seq == x:
+            if seq[i:i+k] == x:
                 num_x += 1 
             total += 1 
     return num_x/(total * 1.0)

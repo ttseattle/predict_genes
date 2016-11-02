@@ -35,8 +35,8 @@ SUMMARY FOR FIRST 5 ORFS OF LENGTH < 50
 
 SUMMARY FOR FIRST 5 ORFS OF LENGTH > 1400
 #     Start      Length     MM Score           CDS? 
-1     17618      1614       54.5409415958      False     
-2     33625      1623       65.6859640015      False     
-3     42724      2388       76.0581583166      False  
-4     74591      1422       36.7210402482      False  
-5     76819      1665       61.6096434786      False     
+1     17618      1614       54.5409415958      True     
+2     33625      1623       65.6859640015      True     
+3     42724      2388       76.0581583166      True  
+4     74591      1422       36.7210402482      True  
+5     76819      1665       61.6096434786      True     

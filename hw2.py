@@ -1,5 +1,9 @@
 import open_reading_frame 
 import markov_model
+import matplotlib.pyplot as plt
+import numpy as np
+import pdb
+from numpy import trapz
 
 MJANNASCHII_FILEPATH = "data/genome.fna"
 ANNOTATIONS_FILEPATH = "data/annotation.gbff"
@@ -7,19 +11,125 @@ SHORT_THRESH = 50
 LONG_THRESH = 1400
 K = 3 
 
+# true-positive: a gene, and says is a gene
+def positive(orfs, gene_ends):
+    num_false_positives = 0
+    num_true_positives = 0
+    for orf in orfs:
+        seq, start, end = orf 
+        if end in gene_ends:
+            num_true_positives += 1
+        else: 
+            num_false_positives +=1
+    return (num_false_positives, num_true_positives)
+
+def len_thresh(orfs, gene_ends, threshold):
+    genes = []
+    for orf in orfs:
+        seq, start, end = orf 
+        if len(seq) > threshold:
+            genes.append(orf)
+    
+    num_false_positives, num_true_positives = positive(genes, gene_ends)
+
+    return get_rates(num_true_positives, num_false_positives, orfs, genes, gene_ends)
+
+def orf_mm_scores(orfs, gene_ends, threshold, k, trusted_genes, trusted_non_genes):
+    mm_scores = []
+    for orf in orfs: 
+        seq, start, end = orf 
+        mm_score = markov_model.calc_mm_score(seq, k, trusted_genes, trusted_non_genes)
+        mm_scores.append((orf, mm_score))
+    return mm_scores 
+
+def mm_thresh(orfs, gene_ends, threshold, k, trusted_genes, trusted_non_genes):
+    genes = []
+    for orf in orfs: 
+        seq, start, end = orf 
+        mm_score = markov_model.calc_mm_score(seq, k, trusted_genes, trusted_non_genes)
+        if mm_score > threshold: 
+            genes.append(orf)
+
+    num_false_positives, num_true_positives = positive(genes, gene_ends)
+
+    return get_rates(num_true_positives, num_false_positives, orfs, genes, gene_ends)
+
+def mm_thresh_2(orfs, gene_ends, threshold, k, trusted_genes, trusted_non_genes, mm_scores):
+    genes = []
+    for mm_score in mm_scores: 
+        orf, score = mm_score 
+        if score > threshold: 
+            genes.append(orf) 
+    num_false_positives, num_true_positives = positive(genes, gene_ends)
+    return get_rates(num_true_positives, num_false_positives, orfs, genes, gene_ends)
+
+def get_rates(num_true_positives, num_false_positives, orfs, genes, gene_ends): 
+    # TPR = TP/TP+FN 
+    # TP + FN = CDS 
+    tp_rate = num_true_positives*1.0/len(gene_ends)
+
+    # FPR += FP/FP+TN 
+    # TN = orfs not meeting threshold or in cds 
+    fp_rate = num_false_positives*1.0/(len(orfs)-len(genes)-len(gene_ends)+num_true_positives)
+    
+    return (fp_rate, tp_rate)
+
+def plot_len_roc(threshold, orfs, gene_ends):
+    x = []
+    y = []
+    thresh = 0 
+    while thresh < threshold:
+        thresh += 50
+        x_pt, y_pt = len_thresh(orfs, gene_ends, thresh)
+        x.append(x_pt)
+        y.append(y_pt)
+    return x, y 
+
+def plot_mm_roc(threshold, k, orfs, gene_ends, trusted_genes, trusted_non_genes): 
+    x = []
+    y = []
+    thresh = 0 
+    while thresh < threshold: 
+        thresh += 50
+        x_pt, y_pt = mm_thresh(orfs, gene_ends, threshold, k, trusted_genes, trusted_non_genes)
+        x.append(x_pt)
+        y.append(y_pt)
+    return x, y 
+
 def main(): 
     # get data 
     seq = open_reading_frame.prep_mjannaschii(MJANNASCHII_FILEPATH) 
     gene_ends = open_reading_frame.prep_annotations(ANNOTATIONS_FILEPATH, seq)
 
-    # homework problems 
     orfs = find_orfs(seq)
     short_orfs, long_orfs = find_short_and_long_orfs(orfs, SHORT_THRESH, LONG_THRESH)
     get_num_cdss(gene_ends)
     trusted_non_genes = remove_stop_codons(short_orfs)
     trusted_genes = remove_stop_codons(long_orfs)
-    count_xy(K, trusted_genes, trusted_non_genes)
-    print_summary(short_orfs, long_orfs, trusted_genes, trusted_non_genes, gene_ends)
+
+    # homework problems 
+    
+    len_x, len_y = plot_len_roc(1400, orfs, gene_ends)
+    # mm_x, mm_y = plot_mm_roc(100, K, orfs, gene_ends, trusted_genes, trusted_non_genes)
+    plt.plot(len_x, len_y, 'ro')
+    # plt.plot(mm_x, mm_y, 'ro')
+    # Compute the area using the composite trapezoidal rule.
+    area = trapz(len_y, dx=5)
+    print("len ROC area under curve =", area)
+
+    
+    plt.show()
+
+    # scores = orf_mm_scores(orfs, gene_ends, 30, K, trusted_genes, trusted_non_genes)
+    # print mm_thresh_2(orfs, gene_ends, 30, K, trusted_genes, trusted_non_genes, scores)
+    # print mm_thresh_2(orfs, gene_ends, 40, K, trusted_genes, trusted_non_genes, scores)
+    # print mm_thresh_2(orfs, gene_ends, 50, K, trusted_genes, trusted_non_genes, scores)
+    
+
+    # open_reading_frame.len_thresh(orfs, gene_ends, 348)
+    # 
+    # count_xy(K, trusted_genes, trusted_non_genes)
+    # print_summary(short_orfs, long_orfs, trusted_genes, trusted_non_genes, gene_ends)
 
 # 1A #####################################################################
 
@@ -105,16 +215,23 @@ def print_summary(short_orfs, long_orfs, trusted_genes, trusted_non_genes, gene_
 
 def print_summary_helper(orfs, trusted_genes, trusted_non_genes, gene_ends):
     print "{:<5} {:<10} {:<10} {:<18} {:<10}".format("#", "Start", "Length", "MM Score", "CDS?")
+    lens = []
+    mms = []
     count = 1
     for orf in sorted(orfs, key=lambda tup: tup[1])[:5]:
-        print_info(count, orf, trusted_genes, trusted_non_genes, gene_ends)
+        len, mm = print_info(count, orf, trusted_genes, trusted_non_genes, gene_ends)
+        lens.append(len)
+        mms.append(mm)
         count += 1
+    plt.plot(lens, mms)
+    plt.show()
 
 def print_info(count, orf, trusted_genes, trusted_non_genes, gene_ends): 
     seq, start, end = orf 
     mm_score = markov_model.calc_mm_score(seq, K, trusted_genes, trusted_non_genes)
     cds = 'True' if end in gene_ends else 'False' 
     print "{:<5} {:<10} {:<10} {:<18} {:<10}".format(count, start, len(seq), mm_score, cds)
+    return (len(seq), mm_score)
 
 # ERROR CHECKING #########################################################
 
@@ -130,3 +247,26 @@ def check_genes(orfs, gene_ends):
 # EXECUTE PROGRAM ########################################################
 
 main()
+
+# x1 = [39, 6, 15, 12, 15]
+# x2 = [1614, 1623, 2388, 1422, 1665]
+# y1 = [1.56678727191, 0.667366861992, 0.633938280251, 0.418546201372, 0.634136080416]
+# y2 = [54.5409415958, 65.6859640015, 76.0581583166, 36.7210402482, 61.6096434786]
+# plt.scatter(x1, y1, color='blue')
+# plt.scatter(x2, y2, color='orange')
+
+# x1_med = x1[2]
+# y1_med = y1[2]
+# x2_med = x2[2]
+# y2_med = y2[2]
+# print "(" + str(x1_med) + ", " + str(y1_med) + ")"
+# print "(" + str(x2_med) + ", " + str(y2_med) + ")"
+
+# plt.plot([x1_med, x2_med], [y1_med, y2_med])
+
+# plt.show()
+
+# x = [0.56, 0.78, 0.91]
+# y = [0.01, 0.19, 0.58]
+# plt.plot(y, x, 'ro')
+# plt.show()
